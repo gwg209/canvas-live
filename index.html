@@ -1,16 +1,16 @@
-<!-- Version 2.3 -->
+<!-- Version 2.4 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Live v2.3</title>
+    <title>Canvas-Live v2.4</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             margin: 0; 
             padding: 20px 10px;
-            background-color: #d0d0d0; 
+            background-color: #eef2f5; 
             display: flex;
             justify-content: center;
             align-items: center;
@@ -144,27 +144,12 @@
             background: #e2e8f0;
             margin: 10px 0;
         }
-        .error-msg { 
-            color: #c53030; 
-            background-color: #fff5f5; 
-            border: 1px solid #feb2b2; 
-            padding: 10px; 
-            margin-bottom: 12px; 
-            border-radius: 8px; 
-            display: none; 
-            font-size: 12px; 
-            line-height: 1.4;
-        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Canvas-Live <span class="version">v2.3</span></h2>
-    
-    <div id="popupWarning" class="error-msg">
-        <strong>⚠️ Popup Blocked!</strong> Please allow popups for this page, then click Launch.
-    </div>
+    <h2>Canvas-Live <span class="version">v2.4</span></h2>
 
     <div class="input-group">
         <label for="urlInput">Target URL</label>
@@ -234,7 +219,6 @@
     const txtPhaseLeft = document.getElementById('txtPhaseLeft');
     const txtTotalActive = document.getElementById('txtTotalActive');
     const txtTotal = document.getElementById('txtTotal');
-    const popupWarning = document.getElementById('popupWarning');
 
     mainBtn.addEventListener('click', () => {
         if (sysState === 'idle' || sysState === 'done') {
@@ -271,16 +255,16 @@
         phase = 'active';
         sysState = 'running';
 
-        targetWindow = window.open(targetUrl, 'canvas_live_window', 'width=1024,height=576');
+        // Opens the link in a new tab instead of a popup window
+        targetWindow = window.open(targetUrl, '_blank');
         
         if (!targetWindow || targetWindow.closed || typeof targetWindow.closed == 'undefined') {
             sysState = 'idle';
-            popupWarning.style.display = 'block';
+            alert('Browser blocked opening the new tab. Please check your popup/tab blocker settings.');
             updateUI();
             return;
         }
         
-        popupWarning.style.display = 'none';
         updateUI();
         runTimer();
     }
