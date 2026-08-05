@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas-Live</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 40px 15px;
+            background-color: #f0f2f5; 
+            display: flex;
+            justify-content: center;
+        }
+        .container { 
+            width: 100%;
+            max-width: 480px; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08); 
+        }
+        h2 {
+            margin-top: 0;
+            margin-bottom: 22px;
+            color: #1a202c;
+            text-align: center;
+            font-size: 24px;
+        }
+        .input-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            margin-bottom: 16px; 
+        }
+        .grid-row { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 12px; 
+            margin-bottom: 10px;
+        }
+        label { 
+            font-size: 13px; 
+            font-weight: 600; 
+            color: #4a5568; 
+            white-space: nowrap;
+        }
+        input { 
+            padding: 10px; 
+            font-size: 14px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 6px; 
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+            color: #2d3748;
+        }
+        input:focus {
+            border-color: #3182ce;
+        }
+        button { 
+            width: 100%;
+            padding: 14px; 
+            font-size: 15px; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-launch { background-color: #3182ce; }
+        .btn-launch:hover { background-color: #2b6cb0; }
+        
+        .btn-pause { background-color: #d69e2e; }
+        .btn-pause:hover { background-color: #b7791f; }
+        
+        .btn-resume { background-color: #38a169; }
+        .btn-resume:hover { background-color: #2f855a; }
+
+        .status-box { 
+            background: #f7fafc; 
+            border: 1px solid #edf2f7; 
+            border-radius: 8px; 
+            padding: 18px; 
+            margin-top: 24px; 
+        }
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .status-idle { color: #718096; }
+        .status-active { color: #38a169; }
+        .status-break { color: #3182ce; }
+        .status-paused { color: #d69e2e; }
+        .status-done { color: #e53e3e; }
+
+        .status-row { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 14px; 
+            color: #4a5568; 
+            margin-bottom: 10px; 
+        }
+        .status-row strong {
+            color: #1a202c;
+            font-variant-numeric: tabular-nums;
+        }
+        .divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 14px 0;
+        }
+        .error-msg { 
+            color: #c53030; 
+            background-color: #fff5f5; 
+            border: 1px solid #feb2b2; 
+            padding: 14px; 
+            margin-bottom: 18px; 
+            border-radius: 6px; 
+            display: none; 
+            font-size: 14px; 
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Canvas-Live</h2>
+    
+    <div id="popupWarning" class="error-msg">
+        <strong>⚠️ Popup Blocked!</strong><br>Please allow popups for this page in your browser's address bar, then click Launch again.
+    </div>
+
+    <div class="input-group">
+        <label for="urlInput">Target URL:</label>
+        <input type="url" id="urlInput" value="https://sjdc.instructure.com/conversations">
+    </div>
+
+    <div class="grid-row">
+        <div class="input-group">
+            <label for="activeInput">Active (min):</label>
+            <input type="number" id="activeInput" min="1" step="1" value="120">
+        </div>
+        <div class="input-group">
+            <label for="breakInput">Break (min):</label>
+            <input type="number" id="breakInput" min="0" step="1" value="360">
+        </div>
+        <div class="input-group">
+            <label for="durationInput">Total (hrs):</label>
+            <input type="text" id="durationInput" value="∞">
+        </div>
+    </div>
+
+    <button id="mainBtn" class="btn-launch">Launch</button>
+
+    <div class="status-box">
+        <div class="status-header">
+            <span id="titleStatus" class="status-idle">Status: Idle</span>
+            <span id="titlePhase"></span>
+        </div>
+        <div class="status-row">
+            <span>Next Refresh:</span>
+            <strong id="txtRefresh">--</strong>
+        </div>
+        <div class="status-row">
+            <span>Phase Time Left:</span>
+            <strong id="txtPhaseLeft">--</strong>
+        </div>
+        <div class="divider"></div>
+        <div class="status-row" style="margin-bottom: 0;">
+            <span>Total Elapsed:</span>
+            <strong id="txtTotal">00:00 / ∞</strong>
+        </div>
+    </div>
+</div>
+
+<script>
+    let targetWindow = null;
+    let timerInterval = null;
+
+    // State trackers
+    let sysState = 'idle'; // 'idle', 'running', 'paused', 'done'
+    let phase = 'active';  // 'active', 'break'
+
+    // Configuration Limits
+    let activeLimitSecs = 0;
+    let breakLimitSecs = 0;
+    let totalLimitSecs = Infinity;
+    let targetUrl = '';
+
+    // Active Counters
+    let totalSeconds = 0;
+    let phaseSeconds = 0;
+    let refreshSeconds = 0;
+
+    const REFRESH_INTERVAL = 300; // 5 minutes in seconds
+
+    // DOM Elements
+    const mainBtn = document.getElementById('mainBtn');
+    const titleStatus = document.getElementById('titleStatus');
+    const titlePhase = document.getElementById('titlePhase');
+    const txtRefresh = document.getElementById('txtRefresh');
+    const txtPhaseLeft = document.getElementById('txtPhaseLeft');
+    const txtTotal = document.getElementById('txtTotal');
+    const popupWarning = document.getElementById('popupWarning');
+
+    mainBtn.addEventListener('click', () => {
+        if (sysState === 'idle' || sysState === 'done') {
+            startSession();
+        } else if (sysState === 'running') {
+            pauseSession();
+        } else if (sysState === 'paused') {
+            resumeSession();
+        }
+    });
+
+    function startSession() {
+        // Parse Inputs
+        activeLimitSecs = Math.max(1, Math.round(parseFloat(document.getElementById('activeInput').value) * 60));
+        breakLimitSecs = Math.max(0, Math.round(parseFloat(document.getElementById('breakInput').value) * 60));
+
+        let totalRaw = document.getElementById('durationInput').value.trim();
+        if (totalRaw === '∞' || totalRaw === '' || totalRaw.toLowerCase() === 'infinity') {
+            totalLimitSecs = Infinity;
+        } else {
+            let hrs = parseFloat(totalRaw);
+            totalLimitSecs = (isNaN(hrs) || hrs <= 0) ? Infinity : Math.round(hrs * 3600);
+        }
+
+        targetUrl = document.getElementById('urlInput').value.trim();
+        if (!/^https?:\/\//i.test(targetUrl)) {
+            targetUrl = 'https://' + targetUrl;
+            document.getElementById('urlInput').value = targetUrl;
+        }
+
+        // Reset Counters
+        totalSeconds = 0;
+        phaseSeconds = 0;
+        refreshSeconds = REFRESH_INTERVAL;
+        phase = 'active';
+        sysState = 'running';
+
+        // Attempt to launch target window
+        targetWindow = window.open(targetUrl, 'canvas_live_window', 'width=1024,height=576');
+        
+        if (!targetWindow || targetWindow.closed || typeof targetWindow.closed == 'undefined') {
+            sysState = 'idle';
+            popupWarning.style.display = 'block';
+            updateUI();
+            return;
+        }
+        
+        popupWarning.style.display = 'none';
+        updateUI();
+        runTimer();
+    }
+
+    function pauseSession() {
+        sysState = 'paused';
+        if (timerInterval) clearInterval(timerInterval);
+        updateUI();
+    }
+
+    function resumeSession() {
+        if (!targetWindow || targetWindow.closed) {
+            sysState = 'idle';
+            updateUI();
+            return;
+        }
+        sysState = 'running';
+        runTimer();
+        updateUI();
+    }
+
+    function runTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+            // Safety check for manually closed windows
+            if (!targetWindow || targetWindow.closed) {
+                clearInterval(timerInterval);
+                sysState = 'idle';
+                updateUI();
+                return;
+            }
+
+            totalSeconds++;
+            
+            // Check global completion limit
+            if (totalSeconds >= totalLimitSecs) {
+                clearInterval(timerInterval);
+                sysState = 'done';
+                updateUI();
+                return;
+            }
+
+            phaseSeconds++;
+            
+            if (phase === 'active') {
+                refreshSeconds--;
+                
+                // Hard refresh trigger during Active phase
+                if (refreshSeconds <= 0) {
+                    targetWindow.location.href = targetUrl;
+                    refreshSeconds = REFRESH_INTERVAL;
+                }
+                
+                // Switch to Break phase
+                if (phaseSeconds >= activeLimitSecs) {
+                    if (breakLimitSecs > 0) {
+                        phase = 'break';
+                    } else {
+                        // Edge case: if break is 0, restart active immediately
+                        phase = 'active';
+                        refreshSeconds = REFRESH_INTERVAL;
+                    }
+                    phaseSeconds = 0;
+                }
+            } else {
+                // Break Phase Logic (No refreshes occurring)
+                if (phaseSeconds >= breakLimitSecs) {
+                    // Switch back to Active phase
+                    phase = 'active';
+                    phaseSeconds = 0;
+                    refreshSeconds = REFRESH_INTERVAL;
+                    targetWindow.location.href = targetUrl; // Force immediate refresh to wake up Canvas
+                }
+            }
+            
+            updateUI();
+        }, 1000);
+    }
+
+    function formatTime(secs) {
+        if (secs === Infinity) return '∞';
+        let h = Math.floor(secs / 3600);
+        let m = Math.floor((secs % 3600) / 60);
+        let s = secs % 60;
+        const pad = n => n.toString().padStart(2, '0');
+        if (h > 0) return `${pad(h)}:${pad(m)}:${pad(s)}`;
+        return `${pad(m)}:${pad(s)}`;
+    }
+
+    function updateUI() {
+        // Reset button styling
+        mainBtn.className = '';
+        
+        if (sysState === 'running') {
+            mainBtn.textContent = 'Pause';
+            mainBtn.classList.add('btn-pause');
+            titleStatus.textContent = 'Status: Running';
+            titleStatus.className = 'status-active';
+        } else if (sysState === 'paused') {
+            mainBtn.textContent = 'Resume';
+            mainBtn.classList.add('btn-resume');
+            titleStatus.textContent = 'Status: Paused';
+            titleStatus.className = 'status-paused';
+        } else if (sysState === 'done') {
+            mainBtn.textContent = 'Restart';
+            mainBtn.classList.add('btn-launch');
+            titleStatus.textContent = 'Status: Complete';
+            titleStatus.className = 'status-done';
+        } else {
+            mainBtn.textContent = 'Launch';
+            mainBtn.classList.add('btn-launch');
+            if (totalSeconds > 0 && (!targetWindow || targetWindow.closed)) {
+                titleStatus.textContent = 'Status: Window Closed';
+                titleStatus.className = 'status-done';
+            } else {
+                titleStatus.textContent = 'Status: Idle';
+                titleStatus.className = 'status-idle';
+            }
+        }
+
+        // Header Phase Indicator
+        if (sysState === 'running' || sysState === 'paused') {
+            titlePhase.textContent = phase === 'active' ? '[ Active Phase ]' : '[ Break Phase ]';
+            titlePhase.style.color = phase === 'active' ? '#38a169' : '#3182ce';
+        } else {
+            titlePhase.textContent = '';
+        }
+
+        // Countdown timers
+        if (sysState === 'idle' || sysState === 'done') {
+            txtRefresh.textContent = '--';
+            txtPhaseLeft.textContent = '--';
+        } else if (sysState === 'paused') {
+            txtRefresh.textContent = 'Paused';
+            let limit = phase === 'active' ? activeLimitSecs : breakLimitSecs;
+            txtPhaseLeft.textContent = formatTime(limit - phaseSeconds) + ' (Paused)';
+        } else {
+            if (phase === 'active') {
+                txtRefresh.textContent = formatTime(refreshSeconds);
+                txtPhaseLeft.textContent = formatTime(activeLimitSecs - phaseSeconds);
+            } else {
+                txtRefresh.textContent = 'None (On Break)';
+                txtPhaseLeft.textContent = formatTime(breakLimitSecs - phaseSeconds);
+            }
+        }
+
+        // Total Elapsed Footer
+        if (sysState === 'idle' && totalSeconds === 0) {
+            let inputHrs = document.getElementById('durationInput').value;
+            let displayLimit = (inputHrs === '∞' || inputHrs === '') ? '∞' : formatTime(parseFloat(inputHrs) * 3600);
+            txtTotal.textContent = '00:00 / ' + displayLimit;
+        } else {
+            txtTotal.textContent = formatTime(totalSeconds) + ' / ' + formatTime(totalLimitSecs);
+        }
+    }
+</script>
+</body>
+</html>
