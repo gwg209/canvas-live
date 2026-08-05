@@ -1,10 +1,9 @@
-<!-- Version 1.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Live v1.0</title>
+    <title>Canvas-Live v1.1</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
@@ -28,12 +27,12 @@
             color: #1a202c;
             display: flex;
             justify-content: center;
-            align-items: baseline; /* Aligns the bottom of the texts */
-            gap: 8px; /* Space between title and version */
+            align-items: baseline; 
+            gap: 8px; 
             font-size: 24px;
         }
         .version {
-            font-size: 12px; /* Strictly set to exactly half of 24px */
+            font-size: 12px; 
             color: #718096;
             font-weight: normal;
         }
@@ -141,7 +140,7 @@
 <body>
 
 <div class="container">
-    <h2>Canvas-Live <span class="version">v1.0</span></h2>
+    <h2>Canvas-Live <span class="version">v1.1</span></h2>
     
     <div id="popupWarning" class="error-msg">
         <strong>⚠️ Popup Blocked!</strong><br>Please allow popups for this page in your browser's address bar, then click Launch again.
@@ -154,12 +153,12 @@
 
     <div class="grid-row">
         <div class="input-group">
-            <label for="activeInput">Active (min):</label>
-            <input type="number" id="activeInput" min="1" step="1" value="120">
+            <label for="activeInput">Active (hrs):</label>
+            <input type="number" id="activeInput" min="0.01" step="0.5" value="2">
         </div>
         <div class="input-group">
-            <label for="breakInput">Break (min):</label>
-            <input type="number" id="breakInput" min="0" step="1" value="360">
+            <label for="breakInput">Break (hrs):</label>
+            <input type="number" id="breakInput" min="0" step="0.5" value="6">
         </div>
         <div class="input-group">
             <label for="durationInput">Total (hrs):</label>
@@ -173,10 +172,6 @@
         <div class="status-header">
             <span id="titleStatus" class="status-idle">Status: Idle</span>
             <span id="titlePhase"></span>
-        </div>
-        <div class="status-row">
-            <span>Next Refresh:</span>
-            <strong id="txtRefresh">--</strong>
         </div>
         <div class="status-row">
             <span>Phase Time Left:</span>
@@ -210,7 +205,7 @@
 
     // Active Counters
     let totalSeconds = 0;
-    let totalActiveSeconds = 0; // Tracks cumulative time strictly in active phase
+    let totalActiveSeconds = 0; 
     let phaseSeconds = 0;
     let refreshSeconds = 0;
 
@@ -220,7 +215,6 @@
     const mainBtn = document.getElementById('mainBtn');
     const titleStatus = document.getElementById('titleStatus');
     const titlePhase = document.getElementById('titlePhase');
-    const txtRefresh = document.getElementById('txtRefresh');
     const txtPhaseLeft = document.getElementById('txtPhaseLeft');
     const txtTotalActive = document.getElementById('txtTotalActive');
     const txtTotal = document.getElementById('txtTotal');
@@ -237,9 +231,9 @@
     });
 
     function startSession() {
-        // Parse Inputs
-        activeLimitSecs = Math.max(1, Math.round(parseFloat(document.getElementById('activeInput').value) * 60));
-        breakLimitSecs = Math.max(0, Math.round(parseFloat(document.getElementById('breakInput').value) * 60));
+        // Parse Inputs as hours, convert to seconds
+        activeLimitSecs = Math.max(1, Math.round(parseFloat(document.getElementById('activeInput').value) * 3600));
+        breakLimitSecs = Math.max(0, Math.round(parseFloat(document.getElementById('breakInput').value) * 3600));
 
         let totalRaw = document.getElementById('durationInput').value.trim();
         if (totalRaw === '∞' || totalRaw === '' || totalRaw.toLowerCase() === 'infinity') {
@@ -334,7 +328,6 @@
                     if (breakLimitSecs > 0) {
                         phase = 'break';
                     } else {
-                        // Edge case: if break is 0, restart active immediately
                         phase = 'active';
                         refreshSeconds = REFRESH_INTERVAL;
                     }
@@ -406,18 +399,14 @@
 
         // Countdown timers
         if (sysState === 'idle' || sysState === 'done') {
-            txtRefresh.textContent = '--';
             txtPhaseLeft.textContent = '--';
         } else if (sysState === 'paused') {
-            txtRefresh.textContent = 'Paused';
             let limit = phase === 'active' ? activeLimitSecs : breakLimitSecs;
             txtPhaseLeft.textContent = formatTime(limit - phaseSeconds) + ' (Paused)';
         } else {
             if (phase === 'active') {
-                txtRefresh.textContent = formatTime(refreshSeconds);
                 txtPhaseLeft.textContent = formatTime(activeLimitSecs - phaseSeconds);
             } else {
-                txtRefresh.textContent = 'None (On Break)';
                 txtPhaseLeft.textContent = formatTime(breakLimitSecs - phaseSeconds);
             }
         }
