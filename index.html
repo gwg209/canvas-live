@@ -1,9 +1,10 @@
+<!-- Version 1.0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Live </title>
+    <title>Canvas-Live v1.0</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
@@ -25,8 +26,16 @@
             margin-top: 0;
             margin-bottom: 22px;
             color: #1a202c;
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: baseline; /* Aligns the bottom of the texts */
+            gap: 8px; /* Space between title and version */
             font-size: 24px;
+        }
+        .version {
+            font-size: 12px; /* Strictly set to exactly half of 24px */
+            color: #718096;
+            font-weight: normal;
         }
         .input-group { 
             display: flex; 
@@ -132,7 +141,7 @@
 <body>
 
 <div class="container">
-    <h2>Canvas-Live</h2>
+    <h2>Canvas-Live <span class="version">v1.0</span></h2>
     
     <div id="popupWarning" class="error-msg">
         <strong>⚠️ Popup Blocked!</strong><br>Please allow popups for this page in your browser's address bar, then click Launch again.
@@ -174,6 +183,10 @@
             <strong id="txtPhaseLeft">--</strong>
         </div>
         <div class="divider"></div>
+        <div class="status-row">
+            <span>Total Active Time:</span>
+            <strong id="txtTotalActive">00:00</strong>
+        </div>
         <div class="status-row" style="margin-bottom: 0;">
             <span>Total Elapsed:</span>
             <strong id="txtTotal">00:00 / ∞</strong>
@@ -197,6 +210,7 @@
 
     // Active Counters
     let totalSeconds = 0;
+    let totalActiveSeconds = 0; // Tracks cumulative time strictly in active phase
     let phaseSeconds = 0;
     let refreshSeconds = 0;
 
@@ -208,6 +222,7 @@
     const titlePhase = document.getElementById('titlePhase');
     const txtRefresh = document.getElementById('txtRefresh');
     const txtPhaseLeft = document.getElementById('txtPhaseLeft');
+    const txtTotalActive = document.getElementById('txtTotalActive');
     const txtTotal = document.getElementById('txtTotal');
     const popupWarning = document.getElementById('popupWarning');
 
@@ -242,6 +257,7 @@
 
         // Reset Counters
         totalSeconds = 0;
+        totalActiveSeconds = 0;
         phaseSeconds = 0;
         refreshSeconds = REFRESH_INTERVAL;
         phase = 'active';
@@ -304,6 +320,7 @@
             phaseSeconds++;
             
             if (phase === 'active') {
+                totalActiveSeconds++;
                 refreshSeconds--;
                 
                 // Hard refresh trigger during Active phase
@@ -405,12 +422,15 @@
             }
         }
 
-        // Total Elapsed Footer
+        // Total Timers Footer
         if (sysState === 'idle' && totalSeconds === 0) {
             let inputHrs = document.getElementById('durationInput').value;
             let displayLimit = (inputHrs === '∞' || inputHrs === '') ? '∞' : formatTime(parseFloat(inputHrs) * 3600);
+            
+            txtTotalActive.textContent = '00:00';
             txtTotal.textContent = '00:00 / ' + displayLimit;
         } else {
+            txtTotalActive.textContent = formatTime(totalActiveSeconds);
             txtTotal.textContent = formatTime(totalSeconds) + ' / ' + formatTime(totalLimitSecs);
         }
     }
