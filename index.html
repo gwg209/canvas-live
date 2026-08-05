@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Live v1.1</title>
+    <title>Canvas-Live v1.2</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
@@ -140,7 +140,7 @@
 <body>
 
 <div class="container">
-    <h2>Canvas-Live <span class="version">v1.1</span></h2>
+    <h2>Canvas-Live <span class="version">v1.2</span></h2>
     
     <div id="popupWarning" class="error-msg">
         <strong>⚠️ Popup Blocked!</strong><br>Please allow popups for this page in your browser's address bar, then click Launch again.
@@ -184,7 +184,7 @@
         </div>
         <div class="status-row" style="margin-bottom: 0;">
             <span>Total Elapsed:</span>
-            <strong id="txtTotal">00:00 / ∞</strong>
+            <strong id="txtTotal">00:00</strong>
         </div>
     </div>
 </div>
@@ -413,14 +413,11 @@
 
         // Total Timers Footer
         if (sysState === 'idle' && totalSeconds === 0) {
-            let inputHrs = document.getElementById('durationInput').value;
-            let displayLimit = (inputHrs === '∞' || inputHrs === '') ? '∞' : formatTime(parseFloat(inputHrs) * 3600);
-            
             txtTotalActive.textContent = '00:00';
-            txtTotal.textContent = '00:00 / ' + displayLimit;
+            txtTotal.textContent = '00:00';
         } else {
             txtTotalActive.textContent = formatTime(totalActiveSeconds);
-            txtTotal.textContent = formatTime(totalSeconds) + ' / ' + formatTime(totalLimitSecs);
+            txtTotal.textContent = formatTime(totalSeconds);
         }
     }
 </script>
