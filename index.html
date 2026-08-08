@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Live v2.7</title>
+    <title>Canvas-Live v2.8</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
@@ -148,7 +148,7 @@
 <body>
 
 <div class="container">
-    <h2>Canvas-Live <span class="version">v2.7</span></h2>
+    <h2>Canvas-Live</h2>
 
     <div class="input-group">
         <label for="urlInput">Target URL</label>
@@ -196,7 +196,8 @@
 <script>
     let targetWindow = null;
     let timerInterval = null;
-    let audioCtx = null; // Tracks our silent audio engine
+    let timerWorker = null; // New variable for the Web Worker
+    let audioCtx = null;
 
     let sysState = 'idle'; 
     let phase = 'active';  
@@ -231,13 +232,12 @@
     });
 
     function enableAntiSleep() {
-    // Force Chrome to keep the tab awake by playing an inaudible tone
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             
-            gainNode.gain.value = 0; // Mutes the tone completely
+            gainNode.gain.value = 0; 
             
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
@@ -246,7 +246,6 @@
     }
 
     function startSession() {
-        // Trigger the anti-sleep audio immediately on the user's click
         enableAntiSleep();
 
         activeLimitSecs = Math.max(1, Math.round(parseFloat(document.getElementById('activeInput').value) * 3600));
@@ -289,6 +288,7 @@
     function pauseSession() {
         sysState = 'paused';
         if (timerInterval) clearInterval(timerInterval);
+        if (timerWorker) timerWorker.postMessage('stop');
         updateUI();
     }
 
@@ -304,11 +304,29 @@
     }
 
     function runTimer() {
+        // Clear any existing main-thread intervals just in case
         if (timerInterval) clearInterval(timerInterval);
         
-        timerInterval = setInterval(() => {
+        // Create an inline Web Worker if it doesn't exist
+        if (!timerWorker) {
+            const workerBlob = new Blob([`
+                let interval;
+                self.onmessage = function(e) {
+                    if (e.data === 'start') {
+                        interval = setInterval(() => postMessage('tick'), 1000);
+                    } else if (e.data === 'stop') {
+                        clearInterval(interval);
+                    }
+                };
+            `], { type: 'application/javascript' });
+            
+            timerWorker = new Worker(URL.createObjectURL(workerBlob));
+        }
+
+        // Tell the worker what to do every time it ticks
+        timerWorker.onmessage = () => {
             if (!targetWindow || targetWindow.closed) {
-                clearInterval(timerInterval);
+                timerWorker.postMessage('stop');
                 sysState = 'idle';
                 updateUI();
                 return;
@@ -317,7 +335,7 @@
             totalSeconds++;
             
             if (totalSeconds >= totalLimitSecs) {
-                clearInterval(timerInterval);
+                timerWorker.postMessage('stop');
                 sysState = 'done';
                 updateUI();
                 return;
@@ -353,7 +371,10 @@
             }
             
             updateUI();
-        }, 1000);
+        };
+
+        // Start the worker
+        timerWorker.postMessage('start');
     }
 
     function formatTime(secs) {
